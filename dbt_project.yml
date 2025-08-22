@@ -40,6 +40,11 @@ models:
     # Applies to all files under models/example/
     example:
       +materialized: table
+    
+    # Staging models - clean and standardize raw data
+    staging:
+      +materialized: view
+      +description: "Staging models that clean and standardize raw data from ETL process"
 
 
 

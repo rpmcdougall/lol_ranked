@@ -22,6 +22,13 @@ lol_ranked/
 │   ├── test_etl.py        # Unit tests
 │   └── README.md          # ETL documentation
 ├── models/                 # dbt data models
+│   ├── staging/           # Staging models (data cleaning)
+│   │   ├── stg_lol_ranked_matches.sql
+│   │   ├── stg_lol_participants.sql
+│   │   ├── stg_lol_teams.sql
+│   │   ├── schema.yml     # Model definitions and tests
+│   │   └── README.md      # Staging documentation
+│   └── example/           # Example models
 ├── tests/                  # dbt data tests
 ├── macros/                 # dbt macros
 ├── snapshots/              # dbt snapshots
@@ -95,6 +102,7 @@ dbt docs serve
 
 - **Purpose**: Transform raw data into analytics-ready tables
 - **Features**:
+  - Staging models for data cleaning and validation
   - Dimensional modeling
   - Data quality tests
   - Incremental processing
@@ -102,6 +110,12 @@ dbt docs serve
 
 - **Technologies**: dbt, SQL
 - **Output**: Clean, structured data warehouse tables
+
+#### Staging Models (`models/staging/`)
+- **`stg_lol_ranked_matches`**: Main staging model for match data
+- **`stg_lol_participants`**: Participant data normalization
+- **`stg_lol_teams`**: Team data with performance metrics
+- **Comprehensive testing**: Data quality and business logic validation
 
 ### Data Tests (`tests/`)
 

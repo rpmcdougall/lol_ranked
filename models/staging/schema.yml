@@ -1,0 +1,262 @@
+version: 2
+
+sources:
+  - name: etl_raw
+    description: "Raw data from ETL process CSV files"
+    tables:
+      - name: lol_ranked_matches
+        description: "Raw League of Legends ranked match data from ETL CSV output"
+        columns:
+          - name: match_id
+            description: "Unique identifier for the match"
+            tests:
+              - not_null
+              - unique
+          - name: region
+            description: "Game region (NA, EUW, KR, etc.)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['NA', 'EUW', 'KR', 'LAN', 'LAS', 'BR', 'JP', 'RU', 'TR', 'OCE', 'EUNE', 'SEA']
+          - name: platform
+            description: "Platform identifier"
+            tests:
+              - not_null
+          - name: queue_id
+            description: "Queue type ID (420 for Solo/Duo, 440 for Flex)"
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [420, 440]
+          - name: queue_name
+            description: "Queue type name"
+            tests:
+              - not_null
+          - name: season
+            description: "Game season number"
+            tests:
+              - not_null
+          - name: game_version
+            description: "Game patch version"
+            tests:
+              - not_null
+          - name: game_creation
+            description: "Match creation timestamp"
+            tests:
+              - not_null
+          - name: game_duration
+            description: "Match duration in seconds"
+            tests:
+              - not_null
+              - dbt_utils.is_positive
+          - name: game_mode
+            description: "Game mode (CLASSIC)"
+            tests:
+              - not_null
+          - name: game_type
+            description: "Game type (MATCHED_GAME)"
+            tests:
+              - not_null
+          - name: map_id
+            description: "Map identifier"
+            tests:
+              - not_null
+          - name: team_1_id
+            description: "Team 1 identifier"
+            tests:
+              - not_null
+          - name: team_1_win
+            description: "Whether team 1 won"
+            tests:
+              - not_null
+          - name: team_1_first_blood
+            description: "Whether team 1 got first blood"
+          - name: team_1_first_tower
+            description: "Whether team 1 got first tower"
+          - name: team_1_first_inhibitor
+            description: "Whether team 1 got first inhibitor"
+          - name: team_1_first_baron
+            description: "Whether team 1 got first baron"
+          - name: team_1_first_dragon
+            description: "Whether team 1 got first dragon"
+          - name: team_1_first_rift_herald
+            description: "Whether team 1 got first rift herald"
+          - name: team_1_tower_kills
+            description: "Number of towers destroyed by team 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_1_inhibitor_kills
+            description: "Number of inhibitors destroyed by team 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_1_baron_kills
+            description: "Number of barons killed by team 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_1_dragon_kills
+            description: "Number of dragons killed by team 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_1_rift_herald_kills
+            description: "Number of rift heralds killed by team 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_2_id
+            description: "Team 2 identifier"
+            tests:
+              - not_null
+          - name: team_2_win
+            description: "Whether team 2 won"
+            tests:
+              - not_null
+          - name: team_2_first_blood
+            description: "Whether team 2 got first blood"
+          - name: team_2_first_tower
+            description: "Whether team 2 got first tower"
+          - name: team_2_first_inhibitor
+            description: "Whether team 2 got first inhibitor"
+          - name: team_2_first_baron
+            description: "Whether team 2 got first baron"
+          - name: team_2_first_dragon
+            description: "Whether team 2 got first dragon"
+          - name: team_2_first_rift_herald
+            description: "Whether team 2 got first rift herald"
+          - name: team_2_tower_kills
+            description: "Number of towers destroyed by team 2"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_2_inhibitor_kills
+            description: "Number of inhibitors destroyed by team 2"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_2_baron_kills
+            description: "Number of barons killed by team 2"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_2_dragon_kills
+            description: "Number of dragons killed by team 2"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: team_2_rift_herald_kills
+            description: "Number of rift heralds killed by team 2"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_summoner_id
+            description: "Summoner ID of participant 1"
+          - name: participant_1_summoner_name
+            description: "Summoner name of participant 1"
+          - name: participant_1_champion_id
+            description: "Champion ID of participant 1"
+          - name: participant_1_champion_name
+            description: "Champion name of participant 1"
+          - name: participant_1_team_id
+            description: "Team ID of participant 1"
+          - name: participant_1_kills
+            description: "Number of kills by participant 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_deaths
+            description: "Number of deaths by participant 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_assists
+            description: "Number of assists by participant 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_gold_earned
+            description: "Gold earned by participant 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_total_damage_dealt
+            description: "Total damage dealt by participant 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_vision_score
+            description: "Vision score of participant 1"
+            tests:
+              - dbt_utils.is_non_negative
+          - name: participant_1_win
+            description: "Whether participant 1 won"
+
+models:
+  - name: stg_lol_ranked_matches
+    description: "Staging model for League of Legends ranked match data"
+    columns:
+      - name: match_id
+        description: "Unique identifier for the match"
+        tests:
+          - not_null
+          - unique
+      - name: region
+        description: "Game region"
+        tests:
+          - not_null
+      - name: winning_team_id
+        description: "ID of the winning team (1 or 2)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2]
+      - name: game_duration_minutes
+        description: "Game duration in minutes"
+        tests:
+          - not_null
+          - dbt_utils.is_positive
+      - name: participant_1_kda
+        description: "KDA ratio for participant 1"
+        tests:
+          - dbt_utils.is_non_negative
+      - name: region_group
+        description: "Grouped region for analysis"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Americas', 'Europe', 'Asia', 'Oceania', 'Southeast Asia', 'Other']
+
+  - name: stg_lol_participants
+    description: "Staging model for League of Legends participant data"
+    columns:
+      - name: match_id
+        description: "Unique identifier for the match"
+        tests:
+          - not_null
+      - name: summoner_id
+        description: "Summoner ID"
+        tests:
+          - not_null
+      - name: kda
+        description: "KDA ratio"
+        tests:
+          - dbt_utils.is_non_negative
+      - name: performance_tier
+        description: "Performance tier based on KDA"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Perfect', 'Excellent', 'Good', 'Average', 'Poor']
+
+  - name: stg_lol_teams
+    description: "Staging model for League of Legends team data"
+    columns:
+      - name: match_id
+        description: "Unique identifier for the match"
+        tests:
+          - not_null
+      - name: team_id
+        description: "Team identifier (1 or 2)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2]
+      - name: win
+        description: "Whether the team won"
+        tests:
+          - not_null
+      - name: total_objectives
+        description: "Total objectives secured by the team"
+        tests:
+          - dbt_utils.is_non_negative
+      - name: objective_score
+        description: "Weighted objective score"
+        tests:
+          - dbt_utils.is_non_negative 
