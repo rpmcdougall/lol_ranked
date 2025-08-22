@@ -57,11 +57,41 @@ nano .env
 | `GCLOUD_BUCKET` | GCS bucket name | `lol-ranked-data` |
 | `GCLOUD_CREDENTIALS_PATH` | Path to service account JSON | `/path/to/service-account.json` |
 
+#### Service Account Environment Variables (for create_service_account.py)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GCLOUD_TYPE` | Service account type | `service_account` |
+| `GCLOUD_PRIVATE_KEY_ID` | Private key identifier | `abc123def456...` |
+| `GCLOUD_PRIVATE_KEY` | Private key content | `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n` |
+| `GCLOUD_CLIENT_EMAIL` | Service account email | `my-service@project.iam.gserviceaccount.com` |
+| `GCLOUD_CLIENT_ID` | Client identifier | `123456789012345678901` |
+| `GCLOUD_AUTH_URI` | OAuth2 auth URI | `https://accounts.google.com/o/oauth2/auth` |
+| `GCLOUD_TOKEN_URI` | OAuth2 token URI | `https://oauth2.googleapis.com/token` |
+| `GCLOUD_AUTH_PROVIDER_X509_CERT_URL` | Auth provider cert URL | `https://www.googleapis.com/oauth2/v1/certs` |
+| `GCLOUD_CLIENT_X509_CERT_URL` | Client cert URL | `https://www.googleapis.com/robot/v1/metadata/x509/...` |
+| `GCLOUD_UNIVERSE_DOMAIN` | Universe domain | `googleapis.com` |
+
 ### 3. Google Cloud Storage Setup (Optional)
 
 If you want to upload files to Google Cloud Storage:
 
-#### Option A: Service Account (Recommended for Production)
+#### Option A: Service Account with Environment Variables (Recommended)
+
+1. Create a service account in Google Cloud Console
+2. Download the JSON credentials file
+3. Extract the values from the JSON file and set them as environment variables
+4. Generate the service account file at runtime:
+
+```bash
+# Set all required GCLOUD_* environment variables (see env.example)
+# Then generate the service account file
+python create_service_account.py
+```
+
+This approach is more secure as it doesn't require storing credential files.
+
+#### Option B: Direct Service Account File
 
 1. Create a service account in Google Cloud Console
 2. Download the JSON credentials file
@@ -70,7 +100,7 @@ If you want to upload files to Google Cloud Storage:
    export GCLOUD_CREDENTIALS_PATH="/path/to/your/service-account-key.json"
    ```
 
-#### Option B: Application Default Credentials (Development)
+#### Option C: Application Default Credentials (Development)
 
 ```bash
 # Install gcloud CLI and authenticate
@@ -86,13 +116,63 @@ gcloud auth application-default login
 python etl.py
 ```
 
+### Service Account Setup
+
+If you want to use Google Cloud Storage with a service account, you can generate the credentials file from environment variables:
+
+```bash
+# 1. Set up environment variables (see env.example for all required variables)
+export GCLOUD_TYPE="service_account"
+export GCLOUD_PROJECT_ID="your-project-id"
+export GCLOUD_PRIVATE_KEY_ID="your-private-key-id"
+export GCLOUD_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_CONTENT\n-----END PRIVATE KEY-----\n"
+export GCLOUD_CLIENT_EMAIL="your-service@project.iam.gserviceaccount.com"
+# ... set all other required GCLOUD_* variables
+
+# 2. Generate the service account file
+python create_service_account.py
+
+# 3. Run the ETL script (it will automatically use the generated file)
+python etl.py
+```
+
+**Security Benefits:**
+- No credential files stored in version control
+- Credentials can be managed as environment variables
+- File permissions automatically set to 600 (owner read/write only)
+- Validation ensures proper service account structure
+
 ### Docker Usage
+
+#### Option A: With Service Account Generator (Recommended)
 
 ```bash
 # Build the Docker image
 docker build -t lol-etl .
 
-# Run with environment variables
+# Run with all GCLOUD_* environment variables
+docker run -e RIOT_API_KEY="your-riot-key" \
+           -e GCLOUD_PROJECT_ID="your-project" \
+           -e GCLOUD_BUCKET="your-bucket" \
+           -e GCLOUD_TYPE="service_account" \
+           -e GCLOUD_PRIVATE_KEY_ID="your-private-key-id" \
+           -e GCLOUD_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_CONTENT\n-----END PRIVATE KEY-----\n" \
+           -e GCLOUD_CLIENT_EMAIL="your-service@project.iam.gserviceaccount.com" \
+           -e GCLOUD_CLIENT_ID="your-client-id" \
+           -e GCLOUD_AUTH_URI="https://accounts.google.com/o/oauth2/auth" \
+           -e GCLOUD_TOKEN_URI="https://oauth2.googleapis.com/token" \
+           -e GCLOUD_AUTH_PROVIDER_X509_CERT_URL="https://www.googleapis.com/oauth2/v1/certs" \
+           -e GCLOUD_CLIENT_X509_CERT_URL="https://www.googleapis.com/robot/v1/metadata/x509/..." \
+           lol-etl
+```
+
+#### Option B: With Pre-existing Service Account File
+
+```bash
+# Build the Docker image
+docker build -t lol-etl .
+
+# Run with mounted credentials file
 docker run -e RIOT_API_KEY="your-riot-key" \
            -e GCLOUD_PROJECT_ID="your-project" \
            -e GCLOUD_BUCKET="your-bucket" \
@@ -111,17 +191,34 @@ services:
   etl:
     build: .
     environment:
+      # Riot API
       - RIOT_API_KEY=${RIOT_API_KEY}
+      
+      # Google Cloud Storage
       - GCLOUD_PROJECT_ID=${GCLOUD_PROJECT_ID}
       - GCLOUD_BUCKET=${GCLOUD_BUCKET}
-      - GCLOUD_CREDENTIALS_PATH=/app/credentials/service-account.json
-    volumes:
-      - ./credentials:/app/credentials
+      
+      # Service Account (all GCLOUD_* variables will be used to generate credentials)
+      - GCLOUD_TYPE=${GCLOUD_TYPE}
+      - GCLOUD_PRIVATE_KEY_ID=${GCLOUD_PRIVATE_KEY_ID}
+      - GCLOUD_PRIVATE_KEY=${GCLOUD_PRIVATE_KEY}
+      - GCLOUD_CLIENT_EMAIL=${GCLOUD_CLIENT_EMAIL}
+      - GCLOUD_CLIENT_ID=${GCLOUD_CLIENT_ID}
+      - GCLOUD_AUTH_URI=${GCLOUD_AUTH_URI}
+      - GCLOUD_TOKEN_URI=${GCLOUD_TOKEN_URI}
+      - GCLOUD_AUTH_PROVIDER_X509_CERT_URL=${GCLOUD_AUTH_PROVIDER_X509_CERT_URL}
+      - GCLOUD_CLIENT_X509_CERT_URL=${GCLOUD_CLIENT_X509_CERT_URL}
+      - GCLOUD_UNIVERSE_DOMAIN=${GCLOUD_UNIVERSE_DOMAIN}
     restart: unless-stopped
 ```
 
 Then run:
 ```bash
+# Set up your .env file with all required variables
+cp env.example .env
+# Edit .env with your actual values
+
+# Run the ETL pipeline
 docker-compose up
 ```
 
@@ -274,6 +371,17 @@ Error: Riot API key is required
 Error: No Google Cloud credentials found
 ```
 **Solution**: Either set `GCLOUD_CREDENTIALS_PATH` or run `gcloud auth application-default login`.
+
+**For Service Account Generator Issues:**
+```
+Error: Missing required environment variables
+```
+**Solution**: Ensure all required `GCLOUD_*` environment variables are set. See `env.example` for the complete list.
+
+```
+Error: Invalid private key format
+```
+**Solution**: Make sure `GCLOUD_PRIVATE_KEY` includes the full private key with `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` markers.
 
 #### 3. Rate Limiting
 ```

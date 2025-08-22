@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt* ./
 RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || echo "No requirements.txt found, skipping pip install"
 
-# Copy the ETL script
+# Copy the ETL script and service account generator
 COPY etl.py .
+COPY create_service_account.py .
 
 # Create directory for Google Cloud credentials
 RUN mkdir -p /app/credentials

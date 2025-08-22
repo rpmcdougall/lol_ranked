@@ -174,7 +174,19 @@ Required for ETL:
 - `RIOT_API_KEY`: Riot Games API authentication
 - `GCLOUD_PROJECT_ID`: Google Cloud project
 - `GCLOUD_BUCKET`: Storage bucket
-- `GCLOUD_CREDENTIALS_PATH`: Service account credentials
+
+For Google Cloud Storage authentication, you have three options:
+
+1. **Service Account with Environment Variables** (Recommended):
+   - Set all `GCLOUD_*` environment variables (see `etl/env.example`)
+   - Use `python create_service_account.py` to generate credentials file
+   - More secure, no credential files in version control
+
+2. **Direct Service Account File**:
+   - Set `GCLOUD_CREDENTIALS_PATH` to point to your service account JSON file
+
+3. **Application Default Credentials**:
+   - Use `gcloud auth application-default login` for development
 
 ### Security Best Practices
 - Never commit API keys or credentials
