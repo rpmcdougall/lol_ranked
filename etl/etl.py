@@ -17,6 +17,14 @@ from collections import defaultdict
 import cassiopeia as cass
 from cassiopeia import Summoner, Match, MatchHistory, Queue, Region, Platform
 
+# Google Cloud Storage imports
+try:
+    from google.cloud import storage
+    from google.auth.exceptions import DefaultCredentialsError
+    GCLOUD_AVAILABLE = True
+except ImportError:
+    GCLOUD_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -312,6 +320,105 @@ class LoLDataETL:
         except Exception as e:
             logger.error(f"Error saving data to {filename}: {e}")
     
+    def upload_to_gcloud_storage(self, local_file_path: str, bucket_name: str = None, blob_name: str = None) -> bool:
+        """
+        Upload a file to Google Cloud Storage
+        
+        Args:
+            local_file_path: Path to the local file to upload
+            bucket_name: Name of the GCS bucket (from GCLOUD_BUCKET env var if not provided)
+            blob_name: Name for the blob in GCS (uses filename if not provided)
+            
+        Returns:
+            bool: True if upload successful, False otherwise
+        """
+        if not GCLOUD_AVAILABLE:
+            logger.warning("Google Cloud Storage not available. Install google-cloud-storage package.")
+            return False
+        
+        try:
+            # Get configuration from environment variables
+            project_id = os.getenv('GCLOUD_PROJECT_ID')
+            credentials_path = os.getenv('GCLOUD_CREDENTIALS_PATH')
+            bucket_name = bucket_name or os.getenv('GCLOUD_BUCKET')
+            
+            if not bucket_name:
+                logger.error("GCLOUD_BUCKET environment variable is required for Google Cloud Storage upload")
+                return False
+            
+            # Initialize the client
+            if credentials_path:
+                # Use service account credentials file
+                client = storage.Client.from_service_account_json(credentials_path, project=project_id)
+                logger.info(f"Using service account credentials from {credentials_path}")
+            else:
+                # Use default credentials (Application Default Credentials)
+                try:
+                    client = storage.Client(project=project_id)
+                    logger.info("Using Application Default Credentials")
+                except DefaultCredentialsError:
+                    logger.error("No Google Cloud credentials found. Set GCLOUD_CREDENTIALS_PATH or configure ADC.")
+                    return False
+            
+            # Get bucket
+            bucket = client.bucket(bucket_name)
+            
+            # Determine blob name
+            if not blob_name:
+                blob_name = os.path.basename(local_file_path)
+            
+            # Create blob and upload
+            blob = bucket.blob(blob_name)
+            
+            # Upload the file
+            blob.upload_from_filename(local_file_path)
+            
+            # Set metadata
+            blob.metadata = {
+                'uploaded_at': datetime.now().isoformat(),
+                'source': 'lol_ranked_etl',
+                'file_type': 'csv' if local_file_path.endswith('.csv') else 'json'
+            }
+            blob.patch()
+            
+            logger.info(f"Successfully uploaded {local_file_path} to gs://{bucket_name}/{blob_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error uploading {local_file_path} to Google Cloud Storage: {e}")
+            return False
+    
+    def upload_data_files_to_gcloud(self, json_filename: str, csv_filename: str) -> Dict[str, bool]:
+        """
+        Upload both JSON and CSV files to Google Cloud Storage
+        
+        Args:
+            json_filename: Path to the JSON file
+            csv_filename: Path to the CSV file
+            
+        Returns:
+            Dict with upload results for each file
+        """
+        results = {}
+        
+        # Upload JSON file
+        if os.path.exists(json_filename):
+            json_blob_name = f"json/{os.path.basename(json_filename)}"
+            results['json'] = self.upload_to_gcloud_storage(json_filename, blob_name=json_blob_name)
+        else:
+            logger.warning(f"JSON file {json_filename} not found, skipping upload")
+            results['json'] = False
+        
+        # Upload CSV file
+        if os.path.exists(csv_filename):
+            csv_blob_name = f"csv/{os.path.basename(csv_filename)}"
+            results['csv'] = self.upload_to_gcloud_storage(csv_filename, blob_name=csv_blob_name)
+        else:
+            logger.warning(f"CSV file {csv_filename} not found, skipping upload")
+            results['csv'] = False
+        
+        return results
+    
     def run_etl(self, max_matches_per_region: int = 50, tiers: List[str] = None):
         """
         Run the complete ETL process
@@ -387,6 +494,17 @@ class LoLDataETL:
         csv_filename = f"lol_ranked_matches_{timestamp}.csv"
         self.save_data_to_csv(all_match_data, csv_filename)
         
+        # Upload files to Google Cloud Storage
+        logger.info("Uploading files to Google Cloud Storage...")
+        upload_results = self.upload_data_files_to_gcloud(json_filename, csv_filename)
+        
+        # Log upload results
+        for file_type, success in upload_results.items():
+            if success:
+                logger.info(f"✅ {file_type.upper()} file uploaded successfully")
+            else:
+                logger.warning(f"❌ {file_type.upper()} file upload failed")
+        
         # Generate summary statistics
         self.generate_summary_statistics(all_match_data)
         
@@ -426,8 +544,16 @@ class LoLDataETL:
 def main():
     """Main function to run the ETL process"""
     try:
-        # Initialize ETL process
-        etl = LoLDataETL()
+        # Get API key from environment variable
+        api_key = os.getenv('RIOT_API_KEY')
+        if not api_key:
+            logger.error("RIOT_API_KEY environment variable is not set")
+            raise ValueError("RIOT_API_KEY environment variable is required")
+        
+        logger.info("Retrieved API key from environment variable")
+        
+        # Initialize ETL process with API key
+        etl = LoLDataETL(api_key=api_key)
         
         # Run ETL with conservative limits to respect rate limits
         etl.run_etl(

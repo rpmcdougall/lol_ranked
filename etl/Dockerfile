@@ -8,6 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file (if it exists) and install Python dependencies
@@ -16,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || echo "No requi
 
 # Copy the ETL script
 COPY etl.py .
+
+# Create directory for Google Cloud credentials
+RUN mkdir -p /app/credentials
 
 # Set the default command to run the ETL script
 CMD ["python", "etl.py"] 
